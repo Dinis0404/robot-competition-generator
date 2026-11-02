@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機器人競賽 · 抽籤生成器</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-icon">🤖</span>
+    <span id="siteTitle" class="brand-text">機器人競賽 · 抽籤生成器</span>
+  </div>
+  <div class="topbar-actions">
+    <button id="btnHome" class="btn ghost small" title="回到首頁並重置本次抽籤">🏠 重新開始</button>
+    <button id="btnSound" class="btn ghost small icon-btn" title="音效開關">🔊</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ 畫面 1：歡迎 ============ -->
+  <section id="screen-welcome" class="screen active">
+    <div class="hero">
+      <div class="hero-badge">ROBOT COMPETITION DRAW</div>
+      <h1 class="hero-title" id="heroTitle">機器人競賽<br><span class="grad-text">抽籤生成器</span></h1>
+      <p class="hero-sub">擲骰抽任務 → 翻卡配地點 → 開始倒計時</p>
+      <button id="btnStart" class="btn primary big">🎲 開始抽籤</button>
+    </div>
+
+    <div class="flow-steps" id="flowSteps">
+      <div class="step"><span class="step-num">1</span><div><b>擲骰抽任務</b><small>6 個隨機任務抽 <span class="js-rdraw">3</span> 個</small></div></div>
+      <div class="step"><span class="step-num">2</span><div><b>併入固定任務</b><small>4 個固定任務自動加入</small></div></div>
+      <div class="step"><span class="step-num">3</span><div><b>翻卡抽地點</b><small>10 張卡片翻出 <span class="js-ldraw">7</span> 個地點並配對</small></div></div>
+      <div class="step"><span class="step-num">4</span><div><b>開始比賽</b><small><span class="js-minutes">90</span> 分鐘倒計時</small></div></div>
+    </div>
+
+    <h2 class="section-title">🧩 隨機任務池 <small>（將由骰子抽出 <span class="js-rdraw">3</span> 個，點卡片看細節）</small></h2>
+    <div id="randomPreview" class="card-grid"></div>
+
+    <h2 class="section-title">📌 固定任務 <small>（自動加入比賽，點卡片看細節）</small></h2>
+    <div id="fixedCards" class="card-grid cols-4"></div>
+
+    <div id="historyPanel" class="history-panel hidden">
+      <div class="history-head">
+        <h2 class="section-title">🕘 上次抽籤結果</h2>
+        <button id="btnClearHistory" class="btn ghost small">清除紀錄</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </section>
+
+  <!-- ============ 畫面 2：擲骰抽 R 任務 ============ -->
+  <section id="screen-draw" class="screen">
+    <div class="screen-head">
+      <div class="phase-tag">PHASE 1 · 隨機任務</div>
+      <h2>擲骰抽取隨機任務</h2>
+      <p class="screen-desc">骰子點數對應任務編號，共擲 <b class="js-rdraw">3</b> 次；擲到已抽中的任務會<b class="text-danger">自動重擲</b>。</p>
+    </div>
+
+    <div class="dice-zone">
+      <div class="dice-stage">
+        <div class="dice-wrap">
+          <div id="die" class="die"></div>
+        </div>
+        <div class="dice-shadow"></div>
+        <div class="dice-floor"></div>
+      </div>
+      <div class="dice-side">
+        <div id="rollStatus" class="roll-status">按下「擲骰子」開始抽取</div>
+        <button id="btnRoll" class="btn primary">🎲 擲骰子</button>
+        <ol id="rollLog" class="roll-log"></ol>
+      </div>
+    </div>
+
+    <div id="drawCards" class="card-grid"></div>
+
+    <div class="fixed-strip">固定任務自動加入：<span id="fixedChips" class="chips-inline"></span></div>
+
+    <div id="drawFooter" class="phase-footer hidden">
+      <div class="banner">🎉 隨機任務確定！加上 4 個固定任務，本場共 7 個任務</div>
+      <div id="finalTaskChips" class="chips"></div>
+      <button id="btnToLocations" class="btn primary big">下一步 · 抽取地點 →</button>
+    </div>
+  </section>
+
+  <!-- ============ 畫面 3：翻卡抽地點 ============ -->
+  <section id="screen-locations" class="screen">
+    <div class="screen-head">
+      <div class="phase-tag">PHASE 2 · 地點配對</div>
+      <h2>翻卡抽取地點</h2>
+      <p class="screen-desc"><b class="js-ldraw">7</b> 個地點藏在 10 張卡牌之中。點擊翻牌，翻出地點的同時揭曉該地點的<b class="text-gold">任務配對</b>！</p>
+    </div>
+
+    <div class="loc-toolbar">
+      <button id="btnShuffle" class="btn ghost">🌀 洗牌</button>
+      <button id="btnAutoReveal" class="btn ghost">✨ 自動揭曉</button>
+      <button id="btnRevealRest" class="btn ghost hidden">翻開剩餘</button>
+      <div id="locProgress" class="loc-progress">已翻出 0 / <span class="js-ldraw">7</span> 個地點</div>
+    </div>
+
+    <div id="locGrid" class="loc-grid"></div>
+
+    <div id="pairSummary" class="pair-summary hidden">
+      <h3>🏁 最終配對結果</h3>
+      <div id="pairList" class="pair-list"></div>
+      <button id="btnToTimer" class="btn primary big">⏱ 開始比賽倒計時 →</button>
+    </div>
+  </section>
+
+  <!-- ============ 畫面 4：倒計時 ============ -->
+  <section id="screen-timer" class="screen">
+    <div class="screen-head">
+      <div class="phase-tag">PHASE 3 · 比賽進行中</div>
+      <h2>比賽倒計時</h2>
+    </div>
+
+    <div class="timer-layout">
+      <div class="timer-main">
+        <div class="timer-ring">
+          <div id="timerDisplay" class="timer-display">--:--:--</div>
+          <div id="timerLabel" class="timer-label">準備開始</div>
+        </div>
+        <div class="timer-bar"><div id="timerFill" class="timer-fill"></div></div>
+        <div class="timer-controls">
+          <button id="btnTimerStart" class="btn primary big">▶ 開始比賽</button>
+          <button id="btnTimerPause" class="btn warn hidden">⏸ 暫停</button>
+          <button id="btnTimerReset" class="btn ghost">↺ 重置</button>
+        </div>
+        <div id="timerHint" class="timer-hint"></div>
+      </div>
+      <aside class="timer-side">
+        <h3>📍 地點 · 任務 對照表</h3>
+        <div id="timerPairs" class="pair-list"></div>
+      </aside>
+    </div>
+
+    <div id="timeUp" class="timeup hidden">
+      <div class="timeup-box">
+        <div class="timeup-icon">⏰</div>
+        <div class="timeup-text">時間到！</div>
+        <div class="timeup-actions">
+          <button id="btnTimeUpHome" class="btn primary">🔄 再來一場（重新抽籤）</button>
+          <button id="btnTimeUpClose" class="btn ghost">關閉提示</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 任務詳情彈窗 -->
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-box">
+    <button class="modal-close" data-close aria-label="關閉">✕</button>
+    <img id="modalImg" class="modal-img" src="" alt="">
+    <div class="modal-head">
+      <span id="modalCode" class="task-code"></span>
+      <span id="modalTag" class="task-tag"></span>
+      <h3 id="modalTitle"></h3>
+    </div>
+    <div id="modalBody" class="modal-body md"></div>
+  </div>
+</div>
+
+<!-- 載入失敗提示 -->
+<div id="fatal" class="fatal hidden">
+  <div class="fatal-box">
+    <h2>😵 內容載入失敗</h2>
+    <p id="fatalMsg"></p>
+    <p>請勿直接雙擊打開 index.html，需透過本地伺服器執行：</p>
+    <pre>• Windows：雙擊 start.bat
+• macOS / Linux：./start.sh
+• 或使用 VS Code 的 Live Server 外掛</pre>
+    <button id="btnFatalRetry" class="btn primary">重新載入</button>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script src="js/md-parser.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/confetti.js"></script>
+<script src="js/dice.js"></script>
+<script src="js/locboard.js"></script>
+<script src="js/timer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

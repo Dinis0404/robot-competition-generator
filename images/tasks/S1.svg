@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4cc9f0"/>
+      <stop offset="1" stop-color="#0e1430"/>
+    </linearGradient>
+    <pattern id="hex" width="56" height="48" patternUnits="userSpaceOnUse">
+      <path d="M28 0 L56 16 L56 32 L28 48 L0 32 L0 16 Z" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg)"/>
+  <rect width="800" height="500" fill="url(#hex)"/>
+  <circle cx="660" cy="110" r="150" fill="rgba(255,255,255,.06)"/>
+  <circle cx="110" cy="420" r="190" fill="rgba(255,255,255,.05)"/>
+  <g transform="translate(400,215)">
+    <rect x="-120" y="-70" width="240" height="150" rx="26" fill="rgba(10,16,40,.55)" stroke="#8be0ff" stroke-width="5"/>
+    <circle cx="-55" cy="-10" r="22" fill="#8be0ff"/><circle cx="-55" cy="-10" r="9" fill="#0e1430"/>
+    <circle cx="55" cy="-10" r="22" fill="#8be0ff"/><circle cx="55" cy="-10" r="9" fill="#0e1430"/>
+    <rect x="-30" y="42" width="60" height="12" rx="6" fill="rgba(255,255,255,.65)"/>
+    <rect x="-16" y="-108" width="32" height="38" rx="8" fill="rgba(10,16,40,.55)" stroke="#8be0ff" stroke-width="5"/>
+    <circle cx="0" cy="-120" r="12" fill="#8be0ff"/>
+    <circle cx="-120" cy="-70" r="10" fill="#8be0ff"/>
+    <circle cx="120" cy="-70" r="10" fill="#8be0ff"/>
+  </g>
+  <text x="400" y="395" text-anchor="middle" font-family="Arial, 'Microsoft JhengHei', sans-serif" font-size="52" font-weight="bold" fill="#ffffff">S1 · 運送物資</text>
+  <text x="400" y="448" text-anchor="middle" font-family="Arial, 'Microsoft JhengHei', sans-serif" font-size="22" fill="rgba(255,255,255,.55)">ROBOT COMPETITION · 示範圖片，可自行更換</text>
+</svg>

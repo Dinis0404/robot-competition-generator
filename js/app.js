@@ -625,27 +625,34 @@
   }
 
   // ---------------- 事件綁定 ----------------
+  /** 綁定按鈕事件；元素不存在時略過（避免瀏覽器快取新舊版本混搭時整頁靜默失效） */
+  function onBtn(id, fn) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', fn);
+    else console.warn('[app] 找不到元素 #' + id + '，略過綁定（可能是快取了舊版頁面，請強制重新整理）');
+  }
+
   function bindEvents() {
-    $('#btnStart').addEventListener('click', function () {
+    onBtn('btnStart', function () {
       Sfx.click();
       showScreen('draw');
     });
 
-    $('#btnRoll').addEventListener('click', throwOnce);
+    onBtn('btnRoll', throwOnce);
 
-    $('#btnToLocations').addEventListener('click', function () {
+    onBtn('btnToLocations', function () {
       Sfx.click();
       enterLocations();
     });
 
-    $('#btnRoll10').addEventListener('click', rollOnce10);
+    onBtn('btnRoll10', rollOnce10);
 
-    $('#btnToTimer').addEventListener('click', function () {
+    onBtn('btnToTimer', function () {
       Sfx.click();
       enterTimer();
     });
 
-    $('#btnTimerStart').addEventListener('click', function () {
+    onBtn('btnTimerStart', function () {
       if (!state.timerStarted) {
         state.timerStarted = true;
         saveHistory();
@@ -661,7 +668,7 @@
       $('#btnTimerPause').classList.remove('hidden');
     });
 
-    $('#btnTimerPause').addEventListener('click', function () {
+    onBtn('btnTimerPause', function () {
       Timer.pause();
       Sfx.click();
       $('#timerLabel').textContent = '⏸ 已暫停';
@@ -671,38 +678,38 @@
       startBtn.classList.remove('hidden');
     });
 
-    $('#btnTimerReset').addEventListener('click', function () {
+    onBtn('btnTimerReset', function () {
       Timer.pause();
       Timer.reset();
       Sfx.click();
       enterTimer();
     });
 
-    $('#btnTimeUpClose').addEventListener('click', function () {
+    onBtn('btnTimeUpClose', function () {
       $('#timeUp').classList.add('hidden');
     });
 
-    $('#btnTimeUpHome').addEventListener('click', function () {
+    onBtn('btnTimeUpHome', function () {
       $('#timeUp').classList.add('hidden');
       resetAll();
     });
 
-    $('#btnHome').addEventListener('click', resetAll);
+    onBtn('btnHome', resetAll);
 
-    $('#btnClearHistory').addEventListener('click', function () {
+    onBtn('btnClearHistory', function () {
       localStorage.removeItem('rcg_history');
       renderHistory();
       Sfx.click();
     });
 
-    $('#btnSound').addEventListener('click', function () {
+    onBtn('btnSound', function () {
       const muted = !Sfx.isMuted();
       Sfx.setMuted(muted);
       this.textContent = muted ? '🔇' : '🔊';
       if (!muted) Sfx.click();
     });
 
-    $('#btnFatalRetry').addEventListener('click', function () {
+    onBtn('btnFatalRetry', function () {
       location.reload();
     });
   }

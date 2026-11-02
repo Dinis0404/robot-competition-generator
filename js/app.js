@@ -78,6 +78,7 @@
           title: parsed.attrs.title || code,
           image: parsed.attrs.image || '',
           tag: parsed.attrs.tag || (fixedCodes.indexOf(code) >= 0 ? '固定任務' : '隨機任務'),
+          year: parsed.attrs.year || '',
           body: parsed.body,
           desc: MD.firstPlain(parsed.body)
         };
@@ -156,6 +157,7 @@
       '<div class="tc-body">' +
       '  <div class="tc-code-row"><span class="task-code">' + code + '</span><span class="task-tag">' + escHtml(t.tag) + '</span></div>' +
       '  <h3 class="tc-title">' + escHtml(t.title) + '</h3>' +
+      (t.year ? '<div class="tc-year">📅 ' + escHtml(t.year) + ' 賽季現場任務</div>' : '') +
       '  <p class="tc-desc">' + escHtml(t.desc) + '</p>' +
       '  <span class="tc-more">🔍 點看任務細節</span>' +
       '</div></article>';
@@ -180,7 +182,7 @@
     $('#modalCode').style.borderColor = taskColor(code);
     $('#modalCode').style.background = 'transparent';
     $('#modalTag').textContent = t.tag;
-    $('#modalTitle').textContent = t.title;
+    $('#modalTitle').textContent = t.title + (t.year ? '（' + t.year + ' 賽季現場任務）' : '');
     $('#modalBody').innerHTML = MD.mdToHtml(t.body);
     $('#modal').classList.remove('hidden');
   }
@@ -438,15 +440,27 @@
     Sfx.click();
 
     let face = 0;
+    let rerolls = 0;
     while (true) {
       face = Dice.randInt(10);
       await Dice10.rollTo(face);
       const loc = DATA.locations[face - 1];
       if (!usedLocs.has(loc.id)) break;
-      // 重複地點 → 自動重擲（確保不重複）
+      // 重擲次數上限 3 次：超過後從剩餘地點隨機指定（避免無限重擲）
+      if (rerolls >= 3) {
+        const free = DATA.locations.filter(function (l) { return !usedLocs.has(l.id); });
+        const pick = free[Dice.randInt(free.length) - 1];
+        face = DATA.locations.indexOf(pick) + 1;
+        addLog10('重擲已達 3 次上限 → 從剩餘地點隨機指定 📍 ' + pick.id + ' ' + (pick.name || ''), 'dup-line');
+        setRollStatus10('重擲達上限，隨機指定地點 ' + pick.id, true);
+        await sleep(500);
+        await Dice10.rollTo(face);
+        break;
+      }
+      rerolls++;
       Sfx.dup();
-      setRollStatus10('地點 ' + loc.id + ' 已被占用 → 自動重擲！', true);
-      addLog10('點數 ' + face + ' → 地點 ' + loc.id + ' 已占用，自動重擲', 'dup-line');
+      setRollStatus10('地點 ' + loc.id + ' 已被占用 → 自動重擲（' + rerolls + '/3）', true);
+      addLog10('點數 ' + face + ' → 地點 ' + loc.id + ' 已占用，自動重擲 ' + rerolls + '/3', 'dup-line');
       await sleep(650);
     }
 

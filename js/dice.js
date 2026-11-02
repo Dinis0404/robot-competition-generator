@@ -98,14 +98,16 @@ const Dice10 = (function () {
     numEl.textContent = '?';
   }
 
-  /** 擲骰：翻滾 + 跳號 dur 毫秒後停在 face，回傳 Promise */
+  /** 擲骰：拋擲翻滾 + 跳號 dur 毫秒後停在 face，回傳 Promise */
   function rollTo(face, dur) {
     dur = dur || 1250;
     return new Promise(function (resolve) {
       if (!el) return resolve();
       rolling = true;
+      const wrap = el.closest('.dice-wrap');
       el.classList.remove('land');
       el.classList.add('rolling');
+      if (wrap) wrap.classList.add('d10-rolling');
       Sfx.roll();
       // 快速跳號
       cycling = setInterval(function () {
@@ -115,6 +117,7 @@ const Dice10 = (function () {
         clearInterval(cycling);
         cycling = null;
         el.classList.remove('rolling');
+        if (wrap) wrap.classList.remove('d10-rolling');
         el.classList.add('land');
         numEl.textContent = String(face);
         Sfx.land();

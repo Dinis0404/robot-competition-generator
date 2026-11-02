@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>機器人競賽 · 抽籤生成器</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 <div class="bg-grid" aria-hidden="true"></div>
@@ -94,7 +94,7 @@
     <div class="screen-head">
       <div class="phase-tag">PHASE 2 · 地點配對</div>
       <h2>擲十面骰分配地點</h2>
-      <p class="screen-desc">骰子點數對應地點 <b>01～10</b>。<b class="js-tcount">7</b> 個任務已由程式隨機排序，逐一擲骰分配地點；擲到<b class="text-danger">重複地點自動重擲</b>，保證每個任務地點不重複。</p>
+      <p class="screen-desc">骰子點數對應地點 <b>01～10</b>。<b class="js-tcount">7</b> 個任務已由程式隨機排序，逐一擲骰分配地點；擲到<b class="text-danger">重複地點自動重擲（每任務最多重擲 3 次，超過則從剩餘地點隨機指定）</b>，保證每個任務地點不重複。</p>
     </div>
 
     <div class="queue-zone">
@@ -126,6 +126,10 @@
     <div id="pairSummary" class="pair-summary hidden">
       <h3>🏁 最終配對結果</h3>
       <div id="pairList" class="pair-list"></div>
+      <figure class="field-map-wrap">
+        <img src="images/field-map.jpg" alt="場地位置圖" class="field-map">
+        <figcaption>📍 場地模型區位置圖（1–10 號位）</figcaption>
+      </figure>
       <button id="btnToTimer" class="btn primary big">⏱ 開始比賽倒計時 →</button>
     </div>
   </section>
@@ -155,6 +159,10 @@
       <aside class="timer-side">
         <h3>📍 地點 · 任務 對照表</h3>
         <div id="timerPairs" class="pair-list"></div>
+        <figure class="field-map-wrap">
+          <img src="images/field-map.jpg" alt="場地位置圖" class="field-map">
+          <figcaption>場地模型區位置圖（1–10 號位）</figcaption>
+        </figure>
       </aside>
     </div>
 
@@ -215,11 +223,11 @@
 
 <canvas id="confetti" aria-hidden="true"></canvas>
 
-<script src="js/md-parser.js?v=4"></script>
-<script src="js/audio.js?v=4"></script>
-<script src="js/confetti.js?v=4"></script>
-<script src="js/dice.js?v=4"></script>
-<script src="js/timer.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/md-parser.js?v=5"></script>
+<script src="js/audio.js?v=5"></script>
+<script src="js/confetti.js?v=5"></script>
+<script src="js/dice.js?v=5"></script>
+<script src="js/timer.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>

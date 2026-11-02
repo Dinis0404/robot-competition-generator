@@ -224,6 +224,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
   padding: 2px 10px;
 }
 .tc-title { font-size: 17px; margin-bottom: 4px; }
+.tc-year {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  opacity: 0.85;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
 .tc-desc {
   color: var(--muted); font-size: 13px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
@@ -451,12 +459,22 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
   color: #1a2450;
   font-variant-numeric: tabular-nums;
 }
-.d10.rolling { animation: d10tumble 0.45s ease-in-out infinite; }
-@keyframes d10tumble {
-  0%, 100% { transform: translateX(0) rotate(0deg) scale(1); }
-  20% { transform: translateX(-16px) rotate(-14deg) scale(0.96); }
-  50% { transform: translateX(0) rotate(2deg) scale(1.02); }
-  80% { transform: translateX(16px) rotate(14deg) scale(0.96); }
+.d10.rolling { animation: d10toss 0.55s cubic-bezier(0.35, 0.5, 0.4, 1) infinite; transform-origin: 50% 92%; }
+@keyframes d10toss {
+  0%   { transform: translateY(0) rotate(0deg) scale(1, 1); }
+  12%  { transform: translateY(8px) rotate(0deg) scale(1.15, 0.8); }
+  50%  { transform: translateY(-84px) rotate(190deg) scale(0.9, 1.1); }
+  78%  { transform: translateY(0) rotate(360deg) scale(1.08, 0.88); }
+  90%  { transform: translateY(-16px) rotate(370deg) scale(0.97, 1.03); }
+  100% { transform: translateY(0) rotate(360deg) scale(1, 1); }
+}
+.dice-wrap.d10-rolling .dice-shadow,
+.dice-wrap.d10-rolling .dice-floor {
+  animation: shadowShrink 0.55s cubic-bezier(0.35, 0.5, 0.4, 1) infinite;
+}
+@keyframes shadowShrink {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
+  50% { transform: translateX(-50%) scale(0.5); opacity: 0.35; }
 }
 .d10.land { animation: d10land 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); }
 @keyframes d10land {
@@ -491,6 +509,27 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
   color: #fff;
   background: linear-gradient(135deg, var(--acc), var(--acc2));
 }
+
+/* ---------- 場地位置圖 ---------- */
+.field-map-wrap {
+  margin: 18px auto 22px;
+  max-width: 560px;
+}
+.field-map-wrap .field-map {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 26px rgba(2, 6, 24, 0.5);
+  display: block;
+}
+.field-map-wrap figcaption {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 8px;
+  letter-spacing: 1px;
+}
+.timer-side .field-map-wrap { margin: 16px 0 0; }
 
 /* ---------- 頁尾 ---------- */
 .site-footer {

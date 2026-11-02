@@ -438,48 +438,49 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
 }
 .q-chip.swapping { z-index: 5; }
 
-/* ---------- 十面骰 ---------- */
-.d10-wrap { width: 150px; height: 150px; }
+/* ---------- 十面骰（SVG 五棱十二面體） ---------- */
+.d10-wrap { width: 150px; height: 160px; }
 .d10 {
   width: 100%; height: 100%;
-  display: grid; place-items: center;
-  clip-path: polygon(50% 0%, 100% 40%, 76% 100%, 24% 100%, 0% 40%);
-  background: linear-gradient(155deg, #ffffff, #dfe6ff 55%, #a9b6ee);
-  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
   position: relative;
+  display: grid; place-items: center;
   will-change: transform;
 }
-.d10::before {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0.95), transparent 42%);
+.d10 svg {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.45));
 }
 .d10-num {
-  font-size: 50px; font-weight: 900; z-index: 1;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -56%);
+  font-size: 46px; font-weight: 900;
   color: #1a2450;
   font-variant-numeric: tabular-nums;
+  z-index: 1;
+  pointer-events: none;
 }
-.d10.rolling { animation: d10toss 0.55s cubic-bezier(0.35, 0.5, 0.4, 1) infinite; transform-origin: 50% 92%; }
-@keyframes d10toss {
-  0%   { transform: translateY(0) rotate(0deg) scale(1, 1); }
-  12%  { transform: translateY(8px) rotate(0deg) scale(1.15, 0.8); }
-  50%  { transform: translateY(-84px) rotate(190deg) scale(0.9, 1.1); }
-  78%  { transform: translateY(0) rotate(360deg) scale(1.08, 0.88); }
-  90%  { transform: translateY(-16px) rotate(370deg) scale(0.97, 1.03); }
-  100% { transform: translateY(0) rotate(360deg) scale(1, 1); }
+.d10.rolling { animation: d10hop 0.5s ease-in-out infinite; }
+.d10.rolling svg { animation: d10spin 0.5s linear infinite; }
+@keyframes d10hop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-26px); }
+}
+@keyframes d10spin {
+  to { transform: rotate(360deg); }
 }
 .dice-wrap.d10-rolling .dice-shadow,
 .dice-wrap.d10-rolling .dice-floor {
-  animation: shadowShrink 0.55s cubic-bezier(0.35, 0.5, 0.4, 1) infinite;
+  animation: shadowShrink 0.5s ease-in-out infinite;
 }
 @keyframes shadowShrink {
   0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
-  50% { transform: translateX(-50%) scale(0.5); opacity: 0.35; }
+  50% { transform: translateX(-50%) scale(0.55); opacity: 0.35; }
 }
-.d10.land { animation: d10land 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); }
+.d10.land { animation: d10land 0.38s ease-out; }
 @keyframes d10land {
-  0% { transform: scale(0.82); }
-  55% { transform: scale(1.14); }
+  0% { transform: scale(0.92); }
+  55% { transform: scale(1.07); }
   100% { transform: scale(1); }
 }
 

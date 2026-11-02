@@ -81,8 +81,8 @@ const Dice = (function () {
 })();
 
 /* ==========================================================
-   十面骰（d10）— 點數 1～10 對應地點 01～10
-   以「翻滾動畫 + 快速跳號」呈現，停止時落在大字點數上
+   十面骰（d10）— 五棱十二面體風格 SVG，點數 1～10 對應地點 01～10
+   滾動時整顆旋轉翻滾 + 跳號，停止時落在大字點數上
    ========================================================== */
 const Dice10 = (function () {
   'use strict';
@@ -91,14 +91,52 @@ const Dice10 = (function () {
   let cycling = null;
   let rolling = false;
 
-  function build(container) {
-    el = container;
-    numEl = el.querySelector('.d10-num');
-    el.classList.remove('rolling', 'land');
-    numEl.textContent = '?';
+  /** 生成 d10（五棱十二面體）正面視圖 SVG：上下頂點 + 赤道橢圓 10 點組成 10 個風箏面 */
+  function d10Svg() {
+    const T = [0, -95], B = [0, 95];
+    const pts = [];
+    for (let k = 0; k < 10; k++) {
+      const a = k * Math.PI / 5;               // 36° 步進
+      pts.push([92 * Math.cos(a), 26 * Math.sin(a)]);
+    }
+    let faces = '';
+    // 先畫背面（暗），再畫正面（亮），正面中央最亮
+    const order = [5, 6, 7, 8, 9, 0, 1, 2, 3, 4];
+    order.forEach(function (k) {
+      const p1 = pts[k], p2 = pts[(k + 1) % 10];
+      const front = (p1[1] + p2[1]) >= 0;
+      const cx = Math.abs((p1[0] + p2[0]) / 2);
+      let fill;
+      if (front) {
+        const t = Math.pow(Math.max(0, 1 - cx / 92), 1.4);
+        const L = Math.round(64 + 34 * t);
+        fill = 'hsl(228, 32%, ' + L + '%)';
+      } else {
+        fill = 'hsl(228, 26%, 46%)';
+      }
+      faces += '<polygon points="' + T[0] + ',' + T[1] + ' ' +
+        p1[0].toFixed(1) + ',' + p1[1].toFixed(1) + ' ' +
+        B[0] + ',' + B[1] + ' ' +
+        p2[0].toFixed(1) + ',' + p2[1].toFixed(1) +
+        '" fill="' + fill + '" stroke="rgba(26,36,80,.45)" stroke-width="1.5"/>';
+    });
+    // 上下頂點小亮面
+    return '<svg viewBox="-105 -112 210 224" xmlns="http://www.w3.org/2000/svg">' +
+      '<ellipse cx="0" cy="0" rx="92" ry="26" fill="none" stroke="rgba(26,36,80,.18)" stroke-width="1"/>' +
+      faces +
+      '<circle cx="0" cy="-95" r="4.5" fill="#e8edff"/>' +
+      '<circle cx="0" cy="95" r="4.5" fill="#8d99c9"/>' +
+      '</svg>';
   }
 
-  /** 擲骰：拋擲翻滾 + 跳號 dur 毫秒後停在 face，回傳 Promise */
+  function build(container) {
+    el = container;
+    el.innerHTML = d10Svg() + '<span class="d10-num">?</span>';
+    numEl = el.querySelector('.d10-num');
+    el.classList.remove('rolling', 'land');
+  }
+
+  /** 擲骰：旋轉翻滾 + 跳號 dur 毫秒後停在 face，回傳 Promise */
   function rollTo(face, dur) {
     dur = dur || 1250;
     return new Promise(function (resolve) {
@@ -125,7 +163,7 @@ const Dice10 = (function () {
           el.classList.remove('land');
           rolling = false;
           resolve();
-        }, 420);
+        }, 380);
       }, dur);
     });
   }

@@ -607,6 +607,57 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
 .timer-side .pair-list { grid-template-columns: 1fr; margin-bottom: 0; }
 .timer-side .pair-row { font-size: 13.5px; padding: 9px 12px; }
 
+/* ---------- 長按確認（防誤觸） ---------- */
+.btn.hold-btn { position: relative; overflow: hidden; }
+.hold-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: rgba(255, 93, 115, 0.32);
+  pointer-events: none;
+}
+.btn.hold-btn.nudge { animation: nudge 0.45s ease; }
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* ---------- 大屏模式 ---------- */
+.exit-big { position: fixed; top: 18px; right: 18px; z-index: 70; opacity: 0; transition: opacity 0.35s; }
+body.big-mode .exit-big { opacity: 1; }
+body.big-mode.mouse-idle { cursor: none; }
+body.big-mode.mouse-idle .exit-big { opacity: 0; pointer-events: none; }
+
+body.big-mode .topbar,
+body.big-mode .screen-head,
+body.big-mode .timer-side,
+body.big-mode .timer-controls,
+body.big-mode .timer-hint,
+body.big-mode .site-footer { display: none !important; }
+body.big-mode main { max-width: none; padding: 0; }
+body.big-mode #screen-timer.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+body.big-mode .timer-layout { grid-template-columns: 1fr; gap: 0; width: 100%; }
+body.big-mode .timer-main {
+  border: none; background: transparent;
+  box-shadow: none; padding: 0 4vw;
+}
+body.big-mode .timer-ring { margin-bottom: 0; }
+body.big-mode .timer-display {
+  font-size: clamp(120px, 19vw, 340px);
+  letter-spacing: 0.02em;
+}
+body.big-mode .timer-label { font-size: clamp(20px, 3vw, 44px); letter-spacing: 6px; margin-top: 10px; }
+body.big-mode .timer-bar {
+  position: fixed; top: 0; left: 0;
+  width: 100vw; height: 10px;
+  border-radius: 0; margin: 0; z-index: 60;
+}
+
 /* 時間到 */
 .timeup {
   position: fixed; inset: 0; z-index: 90;

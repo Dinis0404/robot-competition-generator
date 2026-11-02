@@ -13,7 +13,8 @@
     drawnCodes: [],   // 本輪抽中的隨機任務（依抽出順序）
     finalTasks: [],   // 固定 + 抽中，共 7 個代號
     pairs: [],        // [{task, loc:{id,name}}] 依擲骰順序
-    timerStarted: false
+    timerStarted: false,
+    round: 1          // 比賽輪次：第 2 輪起沿用任務、地點重新隨機
   };
   let rollCursor = 0;     // 已完成配對的任務數
   let usedLocs = new Set(); // 已占用的地點編號
@@ -509,8 +510,9 @@
     disp.textContent = pad2(Math.floor(totalSec / 3600)) + ':' + pad2(Math.floor(totalSec % 3600 / 60)) + ':' + pad2(totalSec % 60);
     $('#timerFill').style.width = '100%';
     $('#timerFill').className = 'timer-fill';
-    $('#timerLabel').textContent = '準備開始 · 全長 ' + DATA.cfg.minutes + ' 分鐘';
-    $('#timerHint').textContent = '開始後會自動存入「上次結果」，結束前 10 分鐘轉黃、10 秒逐秒提示音。';
+    $('#roundBadge').textContent = '· 第 ' + state.round + ' 輪';
+    $('#timerLabel').textContent = '第 ' + state.round + ' 輪 · 準備開始 · 全長 ' + DATA.cfg.minutes + ' 分鐘';
+    $('#timerHint').textContent = '開始後會自動存入「上次結果」。「🔒 長按重置」需按住 1.2 秒才會重置（防誤觸）；「🖥 大屏模式」適合投影，按 Esc 或右上角 ✕ 退出。';
     $('#btnTimerStart').classList.remove('hidden');
     $('#btnTimerStart').disabled = false;
     $('#btnTimerStart').textContent = '▶ 開始比賽';
@@ -529,15 +531,15 @@
     if (d.secondsLeft <= 60) {
       disp.className = 'timer-display danger';
       fill.className = 'timer-fill danger';
-      $('#timerLabel').textContent = '⏰ 最後 1 分鐘！';
+      $('#timerLabel').textContent = '第 ' + state.round + ' 輪 · ⏰ 最後 1 分鐘！';
     } else if (d.secondsLeft <= 600) {
       disp.className = 'timer-display warn';
       fill.className = 'timer-fill warn';
-      $('#timerLabel').textContent = '⚠ 剩餘 ' + Math.ceil(d.secondsLeft / 60) + ' 分鐘';
+      $('#timerLabel').textContent = '第 ' + state.round + ' 輪 · ⚠ 剩餘 ' + Math.ceil(d.secondsLeft / 60) + ' 分鐘';
     } else {
       disp.className = 'timer-display';
       fill.className = 'timer-fill';
-      $('#timerLabel').textContent = '比賽進行中';
+      $('#timerLabel').textContent = '第 ' + state.round + ' 輪 · 比賽進行中';
     }
     if (d.secondsLeft <= 10 && d.secondsLeft > 0) Sfx.tick();
   }
@@ -549,6 +551,7 @@
     $('#btnTimerStart').classList.add('hidden');
     $('#btnTimerPause').classList.add('hidden');
     $('#timerHint').textContent = '比賽時間到，請各隊停止操作機器人。';
+    $('#btnNextRound').textContent = '🔁 開始第 ' + (state.round + 1) + ' 輪（重新分配地點）';
     $('#timeUp').classList.remove('hidden');
     Sfx.alarm();
     Confetti.burst(160);
@@ -560,6 +563,7 @@
       list.unshift({
         ts: Date.now(),
         minutes: DATA.cfg.minutes,
+        round: state.round,
         pairs: sortedPairs().map(function (p) { return { loc: p.loc.id + ' ' + (p.loc.name || ''), task: p.task, title: DATA.tasks[p.task].title }; })
       });
       localStorage.setItem('rcg_history', JSON.stringify(list.slice(0, 5)));
@@ -578,7 +582,7 @@
       const chips = h.pairs.map(function (p) {
         return '<span class="chip" style="--tc:' + taskColor(p.task) + '">' + escHtml(p.loc) + ' → ' + p.task + '</span>';
       }).join('');
-      return '<div class="history-item"><span class="h-time">🕘 ' + dateStr + '</span><span class="h-pairs">' + chips + '</span></div>';
+      return '<div class="history-item"><span class="h-time">🕘 ' + dateStr + (h.round && h.round > 1 ? ' · 第 ' + h.round + ' 輪' : '') + '</span><span class="h-pairs">' + chips + '</span></div>';
     }).join('');
   }
 
@@ -591,6 +595,7 @@
     state.finalTasks = [];
     state.pairs = [];
     state.timerStarted = false;
+    state.round = 1;
     rollCount = 0;
     rollingBusy = false;
     rollCursor = 0;
@@ -622,6 +627,94 @@
 
     renderHistory();
     showScreen('welcome');
+  }
+
+  // ---------------- 大屏模式 ----------------
+  let idleTimer = null;
+
+  function pokeIdle() {
+    document.body.classList.remove('mouse-idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (document.body.classList.contains('big-mode')) {
+        document.body.classList.add('mouse-idle');
+      }
+    }, 3000);
+  }
+
+  function enterBigMode() {
+    document.body.classList.add('big-mode');
+    $('#btnExitBig').classList.remove('hidden');
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    try { if (req) req.call(el); } catch (e) { /* 全螢幕不可用時仍套用大屏樣式 */ }
+    pokeIdle();
+  }
+
+  function exitBigMode() {
+    document.body.classList.remove('big-mode', 'mouse-idle');
+    $('#btnExitBig').classList.add('hidden');
+    clearTimeout(idleTimer);
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    try { if (ex && (document.fullscreenElement || document.webkitFullscreenElement)) ex.call(document); } catch (e) { /* ignore */ }
+  }
+
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (document.body.classList.contains('big-mode')) exitBigMode();
+    }
+  });
+  document.addEventListener('webkitfullscreenchange', function () {
+    if (!document.webkitFullscreenElement && document.body.classList.contains('big-mode')) exitBigMode();
+  });
+  document.addEventListener('mousemove', function () {
+    if (document.body.classList.contains('big-mode')) pokeIdle();
+  });
+
+  /** 長按確認：按住 ms 毫秒才觸發，快速點擊只會震動提示（防誤觸）
+   *  用 setInterval 而非 rAF：背景分頁 / 縮略視窗時 rAF 會停擺，導致長按永遠無法完成 */
+  function makeHold(btn, ms, onConfirm) {
+    if (!btn) return;
+    btn.classList.add('hold-btn');
+    const fill = document.createElement('span');
+    fill.className = 'hold-fill';
+    btn.appendChild(fill);
+    let t0 = null, iv = null, finished = false;
+
+    function stopFill() {
+      if (iv) clearInterval(iv);
+      iv = null;
+      setTimeout(function () { fill.style.width = '0%'; }, 120);
+    }
+    function start() {
+      if (btn.disabled || t0) return;
+      finished = false;
+      t0 = Date.now();
+      iv = setInterval(function () {
+        if (t0 === null) return;
+        const p = Math.min(1, (Date.now() - t0) / ms);
+        fill.style.width = (p * 100) + '%';
+        if (p >= 1) {
+          finished = true;
+          t0 = null;
+          stopFill();
+          onConfirm();
+        }
+      }, 40);
+    }
+    function cancel() {
+      if (t0 === null || finished) return;
+      t0 = null;
+      stopFill();
+      btn.classList.add('nudge');
+      setTimeout(function () { btn.classList.remove('nudge'); }, 500);
+    }
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('touchstart', function () { start(); }, { passive: true });
+    btn.addEventListener('mouseup', cancel);
+    btn.addEventListener('mouseleave', cancel);
+    btn.addEventListener('touchend', cancel);
+    btn.addEventListener('touchcancel', cancel);
   }
 
   // ---------------- 事件綁定 ----------------
@@ -678,7 +771,25 @@
       startBtn.classList.remove('hidden');
     });
 
-    onBtn('btnTimerReset', function () {
+    onBtn('btnBigScreen', function () {
+      Sfx.click();
+      enterBigMode();
+    });
+
+    onBtn('btnExitBig', function () {
+      Sfx.click();
+      exitBigMode();
+    });
+
+    onBtn('btnNextRound', function () {
+      Sfx.click();
+      $('#timeUp').classList.add('hidden');
+      state.round++;
+      enterLocations();
+    });
+
+    // 重置需長按確認，防止比賽中被誤觸
+    makeHold($('#btnTimerReset'), 1200, function () {
       Timer.pause();
       Timer.reset();
       Sfx.click();

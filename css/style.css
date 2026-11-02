@@ -386,14 +386,89 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
 .chips { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 18px 0 22px; }
 .chip.lg { font-size: 15px; padding: 7px 18px; }
 
-/* ---------- 地點卡 ---------- */
-.loc-toolbar {
-  display: flex; align-items: center; gap: 12px;
-  justify-content: center;
+/* ---------- 任務排序佇列 ---------- */
+.queue-zone {
+  background: linear-gradient(160deg, var(--card), var(--bg2));
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 22px 26px;
   margin-bottom: 26px;
+  box-shadow: var(--shadow);
+}
+.queue-status {
+  text-align: center;
+  font-size: 15px; font-weight: 700;
+  color: var(--acc);
+  margin-bottom: 14px;
+  min-height: 24px;
+}
+.task-queue {
+  display: flex; gap: 10px; justify-content: center;
   flex-wrap: wrap;
 }
+.q-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-weight: 700; font-size: 13.5px;
+  color: var(--tc, var(--acc));
+  border: 1.5px solid var(--tc, var(--acc));
+  background: color-mix(in srgb, var(--tc, var(--acc)) 10%, transparent);
+  border-radius: 999px;
+  padding: 7px 15px;
+  transition: opacity 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.q-chip .q-loc { font-size: 12px; color: var(--gold); font-weight: 800; }
+.q-chip.pending { opacity: 0.4; }
+.q-chip.done { opacity: 1; }
+.q-chip.current {
+  opacity: 1;
+  transform: scale(1.1);
+  animation: currentPulse 1.4s ease-in-out infinite;
+}
+@keyframes currentPulse {
+  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--tc, var(--acc)) 40%, transparent); }
+  50% { box-shadow: 0 0 24px color-mix(in srgb, var(--tc, var(--acc)) 80%, transparent); }
+}
+.q-chip.swapping { z-index: 5; }
+
+/* ---------- 十面骰 ---------- */
+.d10-wrap { width: 150px; height: 150px; }
+.d10 {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  clip-path: polygon(50% 0%, 100% 40%, 76% 100%, 24% 100%, 0% 40%);
+  background: linear-gradient(155deg, #ffffff, #dfe6ff 55%, #a9b6ee);
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
+  position: relative;
+  will-change: transform;
+}
+.d10::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.95), transparent 42%);
+}
+.d10-num {
+  font-size: 50px; font-weight: 900; z-index: 1;
+  color: #1a2450;
+  font-variant-numeric: tabular-nums;
+}
+.d10.rolling { animation: d10tumble 0.45s ease-in-out infinite; }
+@keyframes d10tumble {
+  0%, 100% { transform: translateX(0) rotate(0deg) scale(1); }
+  20% { transform: translateX(-16px) rotate(-14deg) scale(0.96); }
+  50% { transform: translateX(0) rotate(2deg) scale(1.02); }
+  80% { transform: translateX(16px) rotate(14deg) scale(0.96); }
+}
+.d10.land { animation: d10land 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes d10land {
+  0% { transform: scale(0.82); }
+  55% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 配對進度與結果 ---------- */
+.pair-progress-wrap { text-align: center; margin: 6px 0 20px; }
 .loc-progress {
+  display: inline-block;
   font-size: 15px; font-weight: 700;
   color: var(--gold);
   background: rgba(255, 200, 87, 0.09);
@@ -401,125 +476,34 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
   border-radius: 999px;
   padding: 8px 20px;
 }
-
-.loc-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-  max-width: 980px;
+.pair-results {
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 720px;
   margin: 0 auto;
 }
-.loc-grid.shuffling .loc-card { pointer-events: none; }
-
-.loc-card {
-  perspective: 900px;
-  cursor: pointer;
-  aspect-ratio: 3 / 3.9;
-  animation: cardIn 0.5s ease backwards;
-}
-.loc-card:hover:not(.flipped) .loc-inner { transform: rotateY(0) translateY(-6px); }
-.loc-card.shuffling-anim { z-index: 5; }
-.loc-inner {
-  position: relative;
-  width: 100%; height: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.3, 1.08);
-}
-.loc-card.flipped .loc-inner { transform: rotateY(180deg); }
-.loc-face {
-  position: absolute; inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  border-radius: 16px;
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
-/* 卡背（未翻開） */
-.loc-front {
-  align-items: center; justify-content: center;
-  gap: 8px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(123, 92, 255, 0.35), transparent 55%),
-    radial-gradient(circle at 75% 85%, rgba(76, 201, 240, 0.30), transparent 55%),
-    linear-gradient(160deg, #1b2755, #101838);
-  border: 1.5px solid rgba(140, 170, 255, 0.35);
-  box-shadow: 0 8px 24px rgba(2, 6, 24, 0.5);
-}
-.loc-front::before {
-  content: "";
-  position: absolute; inset: 8px;
-  border: 1px dashed rgba(140, 170, 255, 0.28);
-  border-radius: 12px;
-}
-.loc-front .q-mark {
-  font-size: 54px; font-weight: 900;
-  background: linear-gradient(140deg, var(--acc), var(--acc2));
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 12px rgba(76, 201, 240, 0.5));
-  animation: floatQ 3.4s ease-in-out infinite;
-}
-@keyframes floatQ {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-7px); }
-}
-.loc-front .loc-brand {
-  font-size: 10.5px; letter-spacing: 3px;
-  color: var(--muted);
-}
-/* 卡面（翻開後） */
-.loc-rear {
-  transform: rotateY(180deg);
-  align-items: center; justify-content: center;
-  gap: 8px;
-  padding: 14px 10px;
-  text-align: center;
-  border: 1.5px solid var(--line);
-  background: linear-gradient(165deg, var(--card2), var(--card));
-}
-.loc-card.is-hit .loc-rear {
-  border-color: rgba(255, 200, 87, 0.75);
-  background:
-    radial-gradient(circle at 50% 0%, rgba(255, 200, 87, 0.16), transparent 60%),
-    linear-gradient(165deg, #23335e, #16214a);
-  box-shadow: 0 0 26px rgba(255, 200, 87, 0.22);
-  animation: hitPulse 0.6s ease;
-}
-@keyframes hitPulse {
-  0% { transform: rotateY(180deg) scale(1); }
-  45% { transform: rotateY(180deg) scale(1.09); }
-  100% { transform: rotateY(180deg) scale(1); }
-}
-.loc-num {
-  font-size: 46px; font-weight: 900; line-height: 1;
-  background: linear-gradient(140deg, var(--gold), #ff9d5c);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.loc-num.miss-num {
-  background: none; -webkit-text-fill-color: currentColor; color: #5a6890;
-  font-size: 40px;
-}
-.loc-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-.loc-task-chip {
-  display: inline-flex; align-items: center; gap: 6px;
+.pair-results .pair-row { animation: slideIn 0.4s ease; }
+.pair-order {
+  flex: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
   font-size: 12.5px; font-weight: 800;
-  color: var(--tc, var(--acc));
-  border: 1.5px solid var(--tc, var(--acc));
-  background: color-mix(in srgb, var(--tc, var(--acc)) 14%, transparent);
-  border-radius: 999px;
-  padding: 4px 12px;
-  max-width: 100%;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: #fff;
+  background: linear-gradient(135deg, var(--acc), var(--acc2));
 }
-.loc-miss-label { font-size: 14px; font-weight: 700; color: #7484ad; letter-spacing: 2px; }
-.loc-card.is-miss .loc-rear { background: linear-gradient(165deg, #1a2140, #131a33); opacity: 0.9; }
-.loc-thumb {
-  width: 100%; aspect-ratio: 8/3.4; object-fit: cover;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  margin-top: 2px;
+
+/* ---------- 頁尾 ---------- */
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 26px 22px 34px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 2.1;
 }
+.site-footer a { color: var(--acc); text-decoration: none; font-weight: 700; }
+.site-footer a:hover { text-decoration: underline; }
+.site-footer b { color: #c7d3f2; }
 
 /* ---------- 配對結果 ---------- */
 .pair-summary {
@@ -792,15 +776,14 @@ main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 80px; }
 /* ---------- 響應式 ---------- */
 @media (max-width: 1000px) {
   .card-grid { grid-template-columns: repeat(4, 1fr); }
-  .loc-grid { grid-template-columns: repeat(5, 1fr); gap: 10px; }
   .timer-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .card-grid, .card-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
-  .loc-grid { grid-template-columns: repeat(3, 1fr); }
   .flow-steps { grid-template-columns: repeat(2, 1fr); }
   .dice-zone { flex-direction: column; gap: 22px; }
   .dice-side { min-width: 0; width: 100%; text-align: center; }
   .roll-log { text-align: left; }
   .brand-text { font-size: 14px; }
+  .q-chip { font-size: 12px; padding: 6px 12px; }
 }

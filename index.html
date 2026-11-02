@@ -29,14 +29,14 @@
     <div class="hero">
       <div class="hero-badge">ROBOT COMPETITION DRAW</div>
       <h1 class="hero-title" id="heroTitle">機器人競賽<br><span class="grad-text">抽籤生成器</span></h1>
-      <p class="hero-sub">擲骰抽任務 → 翻卡配地點 → 開始倒計時</p>
+      <p class="hero-sub">擲骰抽任務 → 十面骰配地點 → 開始倒計時</p>
       <button id="btnStart" class="btn primary big">🎲 開始抽籤</button>
     </div>
 
     <div class="flow-steps" id="flowSteps">
       <div class="step"><span class="step-num">1</span><div><b>擲骰抽任務</b><small>6 個隨機任務抽 <span class="js-rdraw">3</span> 個</small></div></div>
       <div class="step"><span class="step-num">2</span><div><b>併入固定任務</b><small>4 個固定任務自動加入</small></div></div>
-      <div class="step"><span class="step-num">3</span><div><b>翻卡抽地點</b><small>10 張卡片翻出 <span class="js-ldraw">7</span> 個地點並配對</small></div></div>
+      <div class="step"><span class="step-num">3</span><div><b>擲骰配地點</b><small>十面骰為 <span class="js-tcount">7</span> 個任務分配地點</small></div></div>
       <div class="step"><span class="step-num">4</span><div><b>開始比賽</b><small><span class="js-minutes">90</span> 分鐘倒計時</small></div></div>
     </div>
 
@@ -89,22 +89,39 @@
     </div>
   </section>
 
-  <!-- ============ 畫面 3：翻卡抽地點 ============ -->
+  <!-- ============ 畫面 3：十面骰配地點 ============ -->
   <section id="screen-locations" class="screen">
     <div class="screen-head">
       <div class="phase-tag">PHASE 2 · 地點配對</div>
-      <h2>翻卡抽取地點</h2>
-      <p class="screen-desc"><b class="js-ldraw">7</b> 個地點藏在 10 張卡牌之中。點擊翻牌，翻出地點的同時揭曉該地點的<b class="text-gold">任務配對</b>！</p>
+      <h2>擲十面骰分配地點</h2>
+      <p class="screen-desc">骰子點數對應地點 <b>01～10</b>。<b class="js-tcount">7</b> 個任務已由程式隨機排序，逐一擲骰分配地點；擲到<b class="text-danger">重複地點自動重擲</b>，保證每個任務地點不重複。</p>
     </div>
 
-    <div class="loc-toolbar">
-      <button id="btnShuffle" class="btn ghost">🌀 洗牌</button>
-      <button id="btnAutoReveal" class="btn ghost">✨ 自動揭曉</button>
-      <button id="btnRevealRest" class="btn ghost hidden">翻開剩餘</button>
-      <div id="locProgress" class="loc-progress">已翻出 0 / <span class="js-ldraw">7</span> 個地點</div>
+    <div class="queue-zone">
+      <div id="queueStatus" class="queue-status">任務順序打亂中……</div>
+      <div id="taskQueue" class="task-queue"></div>
     </div>
 
-    <div id="locGrid" class="loc-grid"></div>
+    <div class="dice-zone">
+      <div class="dice-stage">
+        <div class="dice-wrap d10-wrap">
+          <div id="die10" class="d10"><span id="die10Num" class="d10-num">?</span></div>
+        </div>
+        <div class="dice-shadow"></div>
+        <div class="dice-floor"></div>
+      </div>
+      <div class="dice-side">
+        <div id="rollStatus10" class="roll-status">準備中……</div>
+        <button id="btnRoll10" class="btn primary" disabled>🎲 擲骰子</button>
+        <ol id="rollLog10" class="roll-log"></ol>
+      </div>
+    </div>
+
+    <div class="pair-progress-wrap">
+      <div id="pairProgress" class="loc-progress">已分配 0 / <span class="js-tcount">7</span> 個地點</div>
+    </div>
+
+    <div id="pairResults" class="pair-results"></div>
 
     <div id="pairSummary" class="pair-summary hidden">
       <h3>🏁 最終配對結果</h3>
@@ -154,6 +171,16 @@
 
 </main>
 
+<footer class="site-footer">
+  <div class="footer-line">
+    © <span id="footerYear">2026</span> <a href="https://github.com/Dinis0404" target="_blank" rel="noopener">Dinis0404</a> 製作 · 機器人競賽抽籤生成器
+  </div>
+  <div class="footer-line">
+    🔓 純前端開源工具，<b>無後台、無法人為操控</b>：所有抽籤均使用瀏覽器密碼學隨機數（crypto.getRandomValues），過程全程可見 ·
+    <a href="https://github.com/Dinis0404/robot-competition-generator" target="_blank" rel="noopener">GitHub 原始碼 ↗</a>
+  </div>
+</footer>
+
 <!-- 任務詳情彈窗 -->
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-backdrop" data-close></div>
@@ -188,7 +215,6 @@
 <script src="js/audio.js"></script>
 <script src="js/confetti.js"></script>
 <script src="js/dice.js"></script>
-<script src="js/locboard.js"></script>
 <script src="js/timer.js"></script>
 <script src="js/app.js"></script>
 </body>

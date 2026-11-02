@@ -79,3 +79,57 @@ const Dice = (function () {
     isRolling: function () { return rolling; }
   };
 })();
+
+/* ==========================================================
+   十面骰（d10）— 點數 1～10 對應地點 01～10
+   以「翻滾動畫 + 快速跳號」呈現，停止時落在大字點數上
+   ========================================================== */
+const Dice10 = (function () {
+  'use strict';
+  let el = null;
+  let numEl = null;
+  let cycling = null;
+  let rolling = false;
+
+  function build(container) {
+    el = container;
+    numEl = el.querySelector('.d10-num');
+    el.classList.remove('rolling', 'land');
+    numEl.textContent = '?';
+  }
+
+  /** 擲骰：翻滾 + 跳號 dur 毫秒後停在 face，回傳 Promise */
+  function rollTo(face, dur) {
+    dur = dur || 1250;
+    return new Promise(function (resolve) {
+      if (!el) return resolve();
+      rolling = true;
+      el.classList.remove('land');
+      el.classList.add('rolling');
+      Sfx.roll();
+      // 快速跳號
+      cycling = setInterval(function () {
+        numEl.textContent = String(randInt(10));
+      }, 75);
+      setTimeout(function () {
+        clearInterval(cycling);
+        cycling = null;
+        el.classList.remove('rolling');
+        el.classList.add('land');
+        numEl.textContent = String(face);
+        Sfx.land();
+        setTimeout(function () {
+          el.classList.remove('land');
+          rolling = false;
+          resolve();
+        }, 420);
+      }, dur);
+    });
+  }
+
+  return {
+    build: build,
+    rollTo: rollTo,
+    isRolling: function () { return rolling; }
+  };
+})();

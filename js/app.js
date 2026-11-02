@@ -12,9 +12,12 @@
   const state = {
     drawnCodes: [],   // 本輪抽中的隨機任務（依抽出順序）
     finalTasks: [],   // 固定 + 抽中，共 7 個代號
-    pairs: [],        // [{loc:{id,name}, task}] 依地點編號排序
+    pairs: [],        // [{task, loc:{id,name}}] 依擲骰順序
     timerStarted: false
   };
+  let rollCursor = 0;     // 已完成配對的任務數
+  let usedLocs = new Set(); // 已占用的地點編號
+  let taskOrder = [];     // 打亂後的擲骰順序（任務代號）
 
   const $ = function (sel) { return document.querySelector(sel); };
   const $$ = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
@@ -83,7 +86,6 @@
         cfg: {
           title: cfg.title || '機器人競賽 · 抽籤生成器',
           rDraw: need,
-          locDraw: intOr(cfg.locations_draw, 7),
           minutes: intOr(cfg.timer_minutes, 90)
         },
         fixedCodes: fixedCodes,
@@ -92,7 +94,14 @@
         locations: locations
       };
 
-      if (DATA.locDraw > DATA.locations.length) throw new Error('config：locations_draw（' + DATA.locDraw + '）不可大於地點數量（' + DATA.locations.length + '）');
+      // 十面骰固定對應 10 個地點
+      if (DATA.locations.length !== 10) {
+        throw new Error('十面骰對應 10 個地點：請在 content/locations.md 維護恰好 10 個地點（目前 ' + DATA.locations.length + ' 個）');
+      }
+      const taskTotal = fixedCodes.length + need;
+      if (taskTotal > 10) {
+        throw new Error('任務總數（固定 ' + fixedCodes.length + ' + 隨機 ' + need + ' = ' + taskTotal + '）不可超過地點數量 10');
+      }
 
       renderStatic();
       renderHistory();
@@ -112,8 +121,10 @@
     $('#siteTitle').textContent = DATA.cfg.title;
     $('#heroTitle').innerHTML = escHtml(DATA.cfg.title).replace(/(·|｜|\||-|—)\s*[^<]*$/, '') + '<br><span class="grad-text">抽籤生成器</span>';
     $$('.js-rdraw').forEach(function (el) { el.textContent = DATA.cfg.rDraw; });
-    $$('.js-ldraw').forEach(function (el) { el.textContent = DATA.cfg.locDraw; });
+    const tcountVal = DATA.fixedCodes.length + DATA.cfg.rDraw;
+    $$('.js-tcount').forEach(function (el) { el.textContent = tcountVal; });
     $$('.js-minutes').forEach(function (el) { el.textContent = DATA.cfg.minutes; });
+    $('#footerYear').textContent = new Date().getFullYear();
 
     $('#randomPreview').innerHTML = DATA.randomCodes.map(function (c, i) { return taskCardHtml(c, i); }).join('');
     $('#fixedCards').innerHTML = DATA.fixedCodes.map(function (c, i) { return taskCardHtml(c, i); }).join('');
@@ -126,7 +137,9 @@
     });
 
     Dice.build($('#die'));
+    Dice10.build($('#die10'));
     updateRollStatus('按下「擲骰子」開始抽取', false);
+    setRollStatus10('準備中……');
   }
 
   function escHtml(s) {
@@ -277,83 +290,197 @@
     Confetti.burst(110);
   }
 
-  // ---------------- Phase 2：地點 ----------------
+  // ---------------- Phase 2：十面骰配地點 ----------------
+  function tcount() { return state.finalTasks.length; }
+
+  function sortedPairs() {
+    return state.pairs.slice().sort(function (a, b) {
+      return a.loc.id.localeCompare(b.loc.id, 'en', { numeric: true });
+    });
+  }
+
+  /** 配對列：locFirst=true → 「地點 → 任務」；false → 「#順位 任務 → 地點」 */
+  function pairRowHtml(p, orderNum, locFirst) {
+    const t = DATA.tasks[p.task];
+    const taskPart = '<span class="pair-task">' + p.task + '</span>' +
+      '<span class="pair-task-name">' + escHtml(t.title) + '</span>';
+    const locPart = '<span class="pair-loc">📍 ' + p.loc.id + ' ' + escHtml(p.loc.name || '') + '</span>';
+    return '<div class="pair-row" style="--tc:' + taskColor(p.task) + '">' +
+      (orderNum ? '<span class="pair-order">' + orderNum + '</span>' : '') +
+      (locFirst ? locPart + '<span class="pair-arrow">→</span>' + taskPart
+                : taskPart + '<span class="pair-arrow">→</span>' + locPart) +
+      '</div>';
+  }
+
+  function updateQueueStates() {
+    $$('#taskQueue .q-chip').forEach(function (chip, k) {
+      chip.classList.remove('pending', 'current', 'done');
+      if (k < rollCursor) {
+        chip.classList.add('done');
+        const p = state.pairs[k];
+        if (p && !chip.querySelector('.q-loc')) {
+          const tag = document.createElement('span');
+          tag.className = 'q-loc';
+          tag.textContent = '📍' + p.loc.id;
+          chip.appendChild(tag);
+        }
+      } else if (k === rollCursor && rollCursor < tcount()) {
+        chip.classList.add('current');
+      } else {
+        chip.classList.add('pending');
+      }
+    });
+  }
+
+  function updatePairProgress() {
+    $('#pairProgress').innerHTML = '已分配 <b>' + state.pairs.length + '</b> / ' + tcount() + ' 個地點';
+  }
+
+  function setRollStatus10(msg, isDup) {
+    const el = $('#rollStatus10');
+    el.textContent = msg;
+    el.classList.toggle('dup', !!isDup);
+  }
+
+  function addLog10(text, cls) {
+    const li = document.createElement('li');
+    if (cls) li.className = cls;
+    li.textContent = text;
+    $('#rollLog10').appendChild(li);
+    li.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** FLIP：動畫交換佇列中兩個 chip 的位置 */
+  function swapChips() {
+    return new Promise(function (resolve) {
+      const chips = $$('#taskQueue .q-chip');
+      if (chips.length < 2) return resolve();
+      let i = Math.floor(Math.random() * chips.length);
+      let j = Math.floor(Math.random() * chips.length);
+      while (j === i) j = Math.floor(Math.random() * chips.length);
+      const ea = chips[i], eb = chips[j];
+      const ra = ea.getBoundingClientRect();
+      const rb = eb.getBoundingClientRect();
+      ea.classList.add('swapping');
+      eb.classList.add('swapping');
+      ea.style.transition = 'transform .26s cubic-bezier(.45,.1,.25,1)';
+      eb.style.transition = 'transform .26s cubic-bezier(.45,.1,.25,1)';
+      ea.style.transform = 'translate(' + (rb.left - ra.left) + 'px,' + (rb.top - ra.top) + 'px) scale(1.08)';
+      eb.style.transform = 'translate(' + (ra.left - rb.left) + 'px,' + (ra.top - rb.top) + 'px) scale(1.08)';
+      Sfx.click();
+      setTimeout(function () {
+        ea.style.transition = 'none';
+        eb.style.transition = 'none';
+        ea.style.transform = '';
+        eb.style.transform = '';
+        const marker = document.createElement('span');
+        marker.style.display = 'none';
+        ea.parentNode.insertBefore(marker, ea);
+        ea.parentNode.insertBefore(ea, eb);
+        ea.parentNode.insertBefore(eb, marker);
+        marker.remove();
+        ea.classList.remove('swapping');
+        eb.classList.remove('swapping');
+        setTimeout(resolve, 40);
+      }, 280);
+    });
+  }
+
   function enterLocations() {
     showScreen('locations');
-
-    // 1) 決定哪些地點被抽中
-    const n = DATA.locations.length;
-    const buf = new Uint32Array(n);
-    crypto.getRandomValues(buf);
-    const idx = DATA.locations.map(function (_, i) { return i; });
-    // Fisher-Yates 洗地點索引，取前 locDraw 個
-    for (let i = n - 1; i > 0; i--) {
-      const j = buf[i] % (i + 1);
-      const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
-    }
-    const drawnIdx = idx.slice(0, DATA.cfg.locDraw);
-    const drawnSet = new Set(drawnIdx);
-
-    // 2) 隨機配對：洗任務順序，依地點編號排序後依序配
-    const tasksShuffled = state.finalTasks.slice();
-    const tb = new Uint32Array(tasksShuffled.length);
-    crypto.getRandomValues(tb);
-    for (let i = tasksShuffled.length - 1; i > 0; i--) {
-      const j = tb[i] % (i + 1);
-      const t = tasksShuffled[i]; tasksShuffled[i] = tasksShuffled[j]; tasksShuffled[j] = t;
-    }
-    const drawnLocs = drawnIdx.map(function (i) { return DATA.locations[i]; })
-      .sort(function (a, b) { return a.id.localeCompare(b.id, 'en', { numeric: true }); });
-    state.pairs = drawnLocs.map(function (loc, i) {
-      return { loc: loc, task: tasksShuffled[i] };
-    });
-    const taskByLoc = {};
-    state.pairs.forEach(function (p) { taskByLoc[p.loc.id] = p.task; });
-
-    // 3) 10 張卡面朝下，地點隨機分布
-    const arrangement = DATA.locations.map(function (loc) {
-      return { loc: loc, task: drawnSet.has(DATA.locations.indexOf(loc)) ? taskByLoc[loc.id] : null };
-    });
-    const ab = new Uint32Array(arrangement.length);
-    crypto.getRandomValues(ab);
-    for (let i = arrangement.length - 1; i > 0; i--) {
-      const j = ab[i] % (i + 1);
-      const t = arrangement[i]; arrangement[i] = arrangement[j]; arrangement[j] = t;
-    }
-    LocBoard.build($('#locGrid'), arrangement, { onFlip: onLocFlip });
-    updateLocProgress();
+    state.pairs = [];
+    rollCursor = 0;
+    usedLocs.clear();
+    taskOrder = [];
     $('#pairSummary').classList.add('hidden');
-    $('#btnShuffle').disabled = false;
-    $('#btnAutoReveal').disabled = false;
-    $('#btnRevealRest').classList.add('hidden');
+    $('#pairResults').innerHTML = '';
+    $('#rollLog10').innerHTML = '';
+    $('#btnRoll10').disabled = true;
+    Dice10.build($('#die10'));
+    updatePairProgress();
+
+    // 依原順序排出任務 chips
+    $('#taskQueue').innerHTML = state.finalTasks.map(function (code) {
+      const t = DATA.tasks[code];
+      return '<span class="q-chip" data-code="' + code + '" style="--tc:' + taskColor(code) + '">' +
+        code + ' · ' + escHtml(t.title) + '</span>';
+    }).join('');
+
+    setRollStatus10('準備中……');
+    $('#queueStatus').textContent = '🌀 程式正在隨機打亂任務順序……';
+
+    // 動畫打亂，打亂後的畫面順序即為擲骰順序
+    let chain = sleep(600);
+    for (let s = 0; s < 9; s++) {
+      chain = chain.then(function () { return swapChips(); });
+    }
+    chain.then(function () {
+      taskOrder = $$('#taskQueue .q-chip').map(function (c) { return c.getAttribute('data-code'); });
+      $('#queueStatus').textContent = '✅ 任務順序已打亂，將依畫面順序由左至右逐一擲骰';
+      updateQueueStates();
+      const first = DATA.tasks[taskOrder[0]];
+      setRollStatus10('按下「擲骰子」，為 ' + taskOrder[0] + ' · ' + first.title + ' 抽地點');
+      $('#btnRoll10').disabled = false;
+    });
   }
 
-  function onLocFlip() {
-    const s = LocBoard.stats();
-    updateLocProgress();
-    if (s.hits >= DATA.cfg.locDraw && s.revealed < s.total) {
-      $('#btnRevealRest').classList.remove('hidden');
+  async function rollOnce10() {
+    if (rollingBusy || rollCursor >= tcount()) return;
+    rollingBusy = true;
+    $('#btnRoll10').disabled = true;
+
+    const code = taskOrder[rollCursor];
+    const t = DATA.tasks[code];
+    updateQueueStates();
+    setRollStatus10('為 ' + code + ' · ' + t.title + ' 擲骰中……');
+    addLog10('第 ' + (rollCursor + 1) + ' 順位 ' + code + '：擲骰中……');
+    Sfx.click();
+
+    let face = 0;
+    while (true) {
+      face = Dice.randInt(10);
+      await Dice10.rollTo(face);
+      const loc = DATA.locations[face - 1];
+      if (!usedLocs.has(loc.id)) break;
+      // 重複地點 → 自動重擲（確保不重複）
+      Sfx.dup();
+      setRollStatus10('地點 ' + loc.id + ' 已被占用 → 自動重擲！', true);
+      addLog10('點數 ' + face + ' → 地點 ' + loc.id + ' 已占用，自動重擲', 'dup-line');
+      await sleep(650);
     }
-    if (s.revealed >= s.total) {
-      showPairSummary();
+
+    const loc = DATA.locations[face - 1];
+    usedLocs.add(loc.id);
+    state.pairs.push({ task: code, loc: loc });
+    rollCursor++;
+
+    addLog10('第 ' + rollCursor + ' 擲：點數 ' + face + ' → ' + code + ' · ' + t.title + ' 落地 📍 ' + loc.id + ' ' + (loc.name || ''), 'hit');
+    setRollStatus10(code + ' · ' + t.title + ' → 地點 ' + loc.id + ' ✅');
+    $('#pairResults').insertAdjacentHTML('beforeend', pairRowHtml({ task: code, loc: loc }, rollCursor, false));
+    updateQueueStates();
+    updatePairProgress();
+    Sfx.success();
+
+    if (rollCursor >= tcount()) {
+      finishPairing();
+    } else {
+      const nextCode = taskOrder[rollCursor];
+      setRollStatus10('下一個：' + nextCode + ' · ' + DATA.tasks[nextCode].title);
+      $('#btnRoll10').disabled = false;
+      rollingBusy = false;
     }
   }
 
-  function updateLocProgress() {
-    const s = LocBoard.stats();
-    $('#locProgress').innerHTML = '已翻出 <b>' + s.hits + '</b> / ' + DATA.cfg.locDraw + ' 個地點' + (s.revealed < s.total ? '' : ' · 全部揭曉！');
+  function finishPairing() {
+    rollingBusy = false;
+    $('#btnRoll10').disabled = true;
+    setRollStatus10('🎉 全部任務都已分配地點！');
+    $('#queueStatus').textContent = '🏁 配對完成！';
+    showPairSummary();
   }
 
   function showPairSummary() {
-    $('#pairList').innerHTML = state.pairs.map(function (p) {
-      const t = DATA.tasks[p.task];
-      return '<div class="pair-row" style="--tc:' + taskColor(p.task) + '">' +
-        '<span class="pair-loc">📍 ' + p.loc.id + ' ' + escHtml(p.loc.name || '') + '</span>' +
-        '<span class="pair-arrow">→</span>' +
-        '<span class="pair-task">' + p.task + '</span>' +
-        '<span class="pair-task-name">' + escHtml(t.title) + '</span>' +
-        '</div>';
-    }).join('');
+    $('#pairList').innerHTML = sortedPairs().map(function (p) { return pairRowHtml(p, 0, true); }).join('');
     $('#pairSummary').classList.remove('hidden');
     $('#pairSummary').scrollIntoView({ behavior: 'smooth', block: 'center' });
     Sfx.fanfare();
@@ -361,15 +488,7 @@
   }
 
   function renderTimerPairs() {
-    $('#timerPairs').innerHTML = state.pairs.map(function (p) {
-      const t = DATA.tasks[p.task];
-      return '<div class="pair-row" style="--tc:' + taskColor(p.task) + '">' +
-        '<span class="pair-loc">📍 ' + p.loc.id + '</span>' +
-        '<span class="pair-arrow">→</span>' +
-        '<span class="pair-task">' + p.task + '</span>' +
-        '<span class="pair-task-name">' + escHtml(t.title) + '</span>' +
-        '</div>';
-    }).join('');
+    $('#timerPairs').innerHTML = sortedPairs().map(function (p) { return pairRowHtml(p, 0, true); }).join('');
   }
 
   // ---------------- Phase 3：倒計時 ----------------
@@ -441,7 +560,7 @@
       list.unshift({
         ts: Date.now(),
         minutes: DATA.cfg.minutes,
-        pairs: state.pairs.map(function (p) { return { loc: p.loc.id + ' ' + (p.loc.name || ''), task: p.task, title: DATA.tasks[p.task].title }; })
+        pairs: sortedPairs().map(function (p) { return { loc: p.loc.id + ' ' + (p.loc.name || ''), task: p.task, title: DATA.tasks[p.task].title }; })
       });
       localStorage.setItem('rcg_history', JSON.stringify(list.slice(0, 5)));
     } catch (e) { /* 私密模式等情況忽略 */ }
@@ -474,6 +593,9 @@
     state.timerStarted = false;
     rollCount = 0;
     rollingBusy = false;
+    rollCursor = 0;
+    usedLocs.clear();
+    taskOrder = [];
 
     // 還原抽卡畫面
     $$('#drawCards .task-card').forEach(function (c) {
@@ -485,11 +607,18 @@
     updateRollStatus('按下「擲骰子」開始抽取', false);
     $('#btnRoll').disabled = false;
     $('#drawFooter').classList.add('hidden');
+
+    // 還原配對畫面
     $('#pairSummary').classList.add('hidden');
     $('#timeUp').classList.add('hidden');
-    $('#btnRevealRest').classList.add('hidden');
-    $('#locGrid').innerHTML = '';
-    $('#locProgress').innerHTML = '已翻出 0 / ' + DATA.cfg.locDraw + ' 個地點';
+    $('#pairResults').innerHTML = '';
+    $('#rollLog10').innerHTML = '';
+    $('#taskQueue').innerHTML = '';
+    $('#queueStatus').textContent = '任務順序打亂中……';
+    setRollStatus10('準備中……');
+    $('#btnRoll10').disabled = true;
+    Dice10.build($('#die10'));
+    if (DATA) updatePairProgress();
 
     renderHistory();
     showScreen('welcome');
@@ -509,30 +638,7 @@
       enterLocations();
     });
 
-    $('#btnShuffle').addEventListener('click', function () {
-      if (LocBoard.stats().revealed > 0) return;
-      this.disabled = true;
-      const self = this;
-      LocBoard.shuffle(11).then(function () { self.disabled = false; });
-    });
-
-    $('#btnAutoReveal').addEventListener('click', function () {
-      this.disabled = true;
-      $('#btnShuffle').disabled = true;
-      $('#btnRevealRest').classList.add('hidden');
-      LocBoard.autoReveal(function () {
-        $('#btnRevealRest').classList.add('hidden');
-        showPairSummary();
-      });
-    });
-
-    $('#btnRevealRest').addEventListener('click', function () {
-      this.disabled = true;
-      LocBoard.revealRest().then(function () {
-        $('#btnRevealRest').classList.add('hidden');
-        showPairSummary();
-      });
-    });
+    $('#btnRoll10').addEventListener('click', rollOnce10);
 
     $('#btnToTimer').addEventListener('click', function () {
       Sfx.click();
